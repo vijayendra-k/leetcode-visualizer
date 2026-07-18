@@ -118,6 +118,17 @@ function App() {
       }
 
       return matchesSearch && matchesDifficulty && matchesCompany;
+    }).map(prob => {
+      // Filter out company tags that don't match the timeframe filter
+      if (timeframeFilter !== 'All Time') {
+        const ranks: Record<string, number> = { '30 days': 1, '3 months': 2, '6 months': 3, 'Older': 4, 'All': 5 };
+        const filterRank = ranks[timeframeFilter] || 5;
+        return {
+          ...prob,
+          companies: prob.companies.filter(c => (ranks[c.timeframe || 'All'] || 5) <= filterRank)
+        };
+      }
+      return prob;
     });
   }, [searchTerm, difficultyFilter, companyFilter, timeframeFilter, problems]);
 
