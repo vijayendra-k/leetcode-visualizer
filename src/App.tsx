@@ -5,6 +5,7 @@ import problemsData from './data/problems.json';
 interface Company {
   name: string;
   frequency: number;
+  timeframe?: string;
 }
 
 interface Problem {
@@ -44,6 +45,11 @@ function App() {
     return params.get('company') || 'All';
   });
   
+  const [timeframeFilter, setTimeframeFilter] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('timeframe') || 'All Time';
+  });
+  
   const [currentPage, setCurrentPage] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const page = parseInt(params.get('page') || '1', 10);
@@ -69,11 +75,12 @@ function App() {
     if (searchTerm) params.set('q', searchTerm);
     if (difficultyFilter !== 'All') params.set('diff', difficultyFilter);
     if (companyFilter !== 'All') params.set('company', companyFilter);
+    if (timeframeFilter !== 'All Time') params.set('timeframe', timeframeFilter);
     if (currentPage !== 1) params.set('page', currentPage.toString());
     
     const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
     window.history.replaceState(null, '', newUrl);
-  }, [searchTerm, difficultyFilter, companyFilter, currentPage]);
+  }, [searchTerm, difficultyFilter, companyFilter, timeframeFilter, currentPage]);
 
   // Save solved map to localStorage whenever it changes
   useEffect(() => {
@@ -91,10 +98,28 @@ function App() {
     return problems.filter((prob) => {
       const matchesSearch = prob.title.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesDifficulty = difficultyFilter === 'All' || prob.difficulty === difficultyFilter;
-      const matchesCompany = companyFilter === 'All' || prob.companies.some(c => c.name === companyFilter);
+      
+      const ranks: Record<string, number> = { '30 days': 1, '3 months': 2, '6 months': 3, 'Older': 4, 'All': 5 };
+      const filterRank = ranks[timeframeFilter] || 5;
+
+      let matchesCompany = false;
+      if (companyFilter === 'All') {
+        if (timeframeFilter === 'All Time') {
+          matchesCompany = true;
+        } else {
+          matchesCompany = prob.companies.some(c => (ranks[c.timeframe || 'All'] || 5) <= filterRank);
+        }
+      } else {
+        const companyData = prob.companies.find(c => c.name === companyFilter);
+        if (companyData) {
+          const probRank = ranks[companyData.timeframe || 'All'] || 5;
+          matchesCompany = probRank <= filterRank;
+        }
+      }
+
       return matchesSearch && matchesDifficulty && matchesCompany;
     });
-  }, [searchTerm, difficultyFilter, companyFilter, problems]);
+  }, [searchTerm, difficultyFilter, companyFilter, timeframeFilter, problems]);
 
   const totalPages = Math.ceil(filteredProblems.length / PAGE_SIZE) || 1;
   
@@ -119,6 +144,11 @@ function App() {
 
   const handleCompany = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setCompanyFilter(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleTimeframe = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setTimeframeFilter(e.target.value);
     setCurrentPage(1);
   };
 
@@ -149,6 +179,12 @@ function App() {
             {allCompanies.map(c => (
               <option key={c} value={c}>{c}</option>
             ))}
+          </select>
+          <select className="filter-select" value={timeframeFilter} onChange={handleTimeframe}>
+            <option value="All Time">All Time</option>
+            <option value="30 days">Last 30 Days</option>
+            <option value="3 months">Last 3 Months</option>
+            <option value="6 months">Last 6 Months</option>
           </select>
         </div>
 
@@ -200,8 +236,8 @@ function App() {
                       <td>
                         <div className="companies-list">
                           {prob.companies.slice(0, 3).map(c => (
-                            <span key={c.name} className="company-tag" title={`Frequency: ${c.frequency}`}>
-                              {c.name}
+                            <span key={c.name} className="company-tag" title={`Frequency: ${c.frequency} | Asked: ${c.timeframe || 'All Time'}`}>
+                              {c.name} {c.timeframe && c.timeframe !== 'All' && c.timeframe !== 'Older' ? `(${c.timeframe})` : ''}
                             </span>
                           ))}
                           {prob.companies.length > 3 && (

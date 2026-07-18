@@ -43,43 +43,58 @@ try {
   for (const company of companies) {
     const companyPath = path.join(datasetPath, company);
     if (fs.statSync(companyPath).isDirectory() && !company.startsWith('.')) {
-      const allCsvPath = path.join(companyPath, 'all.csv');
+      const timeframes = [
+        { file: 'thirty-days.csv', label: '30 days' },
+        { file: 'three-months.csv', label: '3 months' },
+        { file: 'six-months.csv', label: '6 months' },
+        { file: 'more-than-six-months.csv', label: 'Older' },
+        { file: 'all.csv', label: 'All' }
+      ];
       
-      if (fs.existsSync(allCsvPath)) {
-        const content = fs.readFileSync(allCsvPath, 'utf8');
-        const lines = content.split('\n');
-        
-        // Skip header line
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
+      for (const { file, label } of timeframes) {
+        const csvPath = path.join(companyPath, file);
+        if (fs.existsSync(csvPath)) {
+          const content = fs.readFileSync(csvPath, 'utf8');
+          const lines = content.split('\n');
           
-          const matches = [...line.matchAll(/(?:^|,)(?:"([^"]*)"|([^,]*))/g)];
-          
-          if (matches.length >= 6) {
-            const id = (matches[0][1] || matches[0][2])?.trim();
-            const url = (matches[1][1] || matches[1][2])?.trim();
-            const title = (matches[2][1] || matches[2][2])?.trim();
-            const difficulty = (matches[3][1] || matches[3][2])?.trim();
-            const acceptance = (matches[4][1] || matches[4][2])?.trim();
-            const frequency = (matches[5][1] || matches[5][2])?.trim();
-
-            if (!id || id === 'ID') continue;
-
-            if (!problemsMap.has(id)) {
-              problemsMap.set(id, {
-                id: parseInt(id),
-                url,
-                title,
-                difficulty,
-                acceptance,
-                companies: []
-              });
-            }
+          for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
             
-            const prob = problemsMap.get(id);
-            if (!prob.companies.some(c => c.name === company)) {
-              prob.companies.push({ name: company, frequency: parseFloat(frequency) || 0 });
+            const matches = [...line.matchAll(/(?:^|,)(?:"([^"]*)"|([^,]*))/g)];
+            if (matches.length >= 6) {
+              const id = (matches[0][1] || matches[0][2])?.trim();
+              const url = (matches[1][1] || matches[1][2])?.trim();
+              const title = (matches[2][1] || matches[2][2])?.trim();
+              const difficulty = (matches[3][1] || matches[3][2])?.trim();
+              const acceptance = (matches[4][1] || matches[4][2])?.trim();
+              const frequency = (matches[5][1] || matches[5][2])?.trim();
+
+              if (!id || id === 'ID') continue;
+
+              if (!problemsMap.has(id)) {
+                problemsMap.set(id, {
+                  id: parseInt(id),
+                  url,
+                  title,
+                  difficulty,
+                  acceptance,
+                  companies: []
+                });
+              }
+              
+              const prob = problemsMap.get(id);
+              const existingComp = prob.companies.find(c => c.name === company);
+              
+              // Only add if it doesn't exist, this way we keep the most specific timeframe
+              // since we iterate from 30 days -> 3 months -> 6 months
+              if (!existingComp) {
+                prob.companies.push({ 
+                  name: company, 
+                  frequency: parseFloat(frequency) || 0,
+                  timeframe: label
+                });
+              }
             }
           }
         }
