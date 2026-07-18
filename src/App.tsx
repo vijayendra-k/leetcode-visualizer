@@ -248,7 +248,7 @@ function App() {
                         <div className="companies-list">
                           {prob.companies.slice(0, 3).map(c => (
                             <span key={c.name} className="company-tag" title={`Frequency: ${c.frequency} | Asked: ${c.timeframe || 'All Time'}`}>
-                              {c.name} {c.timeframe && c.timeframe !== 'All' && c.timeframe !== 'Older' ? `(${c.timeframe})` : ''}
+                              {c.name}
                             </span>
                           ))}
                           {prob.companies.length > 3 && (
