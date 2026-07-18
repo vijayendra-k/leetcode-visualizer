@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# local env files
+.env.local
+.env.*.local
+
+# problems data and temp clone
+src/data/problems.json
+.temp_data/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

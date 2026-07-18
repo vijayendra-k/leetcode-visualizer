@@ -4,7 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "fetch-data": "node scripts/aggregateData.js",
+    "predev": "npm run fetch-data",
     "dev": "vite",
+    "prebuild": "npm run fetch-data",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
