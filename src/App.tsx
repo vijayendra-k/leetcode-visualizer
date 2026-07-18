@@ -14,6 +14,7 @@ interface Problem {
   title: string;
   difficulty: string;
   acceptance: string;
+  topics: string[];
   companies: Company[];
 }
 
@@ -27,6 +28,13 @@ function App() {
     const companySet = new Set<string>();
     problems.forEach(p => p.companies.forEach(c => companySet.add(c.name)));
     return Array.from(companySet).sort();
+  }, [problems]);
+
+  // Get all unique topics for the dropdown
+  const allTopics = useMemo(() => {
+    const topicSet = new Set<string>();
+    problems.forEach(p => (p.topics || []).forEach(t => topicSet.add(t)));
+    return Array.from(topicSet).sort();
   }, [problems]);
 
   // Read initial state from URL query parameters
@@ -43,6 +51,11 @@ function App() {
   const [companyFilter, setCompanyFilter] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('company') || 'All';
+  });
+
+  const [topicFilter, setTopicFilter] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('topic') || 'All';
   });
   
   const [timeframeFilter, setTimeframeFilter] = useState(() => {
@@ -75,12 +88,13 @@ function App() {
     if (searchTerm) params.set('q', searchTerm);
     if (difficultyFilter !== 'All') params.set('diff', difficultyFilter);
     if (companyFilter !== 'All') params.set('company', companyFilter);
+    if (topicFilter !== 'All') params.set('topic', topicFilter);
     if (timeframeFilter !== 'All Time') params.set('timeframe', timeframeFilter);
     if (currentPage !== 1) params.set('page', currentPage.toString());
     
     const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
     window.history.replaceState(null, '', newUrl);
-  }, [searchTerm, difficultyFilter, companyFilter, timeframeFilter, currentPage]);
+  }, [searchTerm, difficultyFilter, companyFilter, topicFilter, timeframeFilter, currentPage]);
 
   // Save solved map to localStorage whenever it changes
   useEffect(() => {
@@ -98,6 +112,7 @@ function App() {
     return problems.filter((prob) => {
       const matchesSearch = prob.title.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesDifficulty = difficultyFilter === 'All' || prob.difficulty === difficultyFilter;
+      const matchesTopic = topicFilter === 'All' || (prob.topics || []).includes(topicFilter);
       
       const ranks: Record<string, number> = { '30 days': 1, '3 months': 2, '6 months': 3, 'Older': 4, 'All': 5 };
       const filterRank = ranks[timeframeFilter] || 5;
@@ -117,8 +132,10 @@ function App() {
         }
       }
 
-      return matchesSearch && matchesDifficulty && matchesCompany;
-    }).map(prob => {
+      return matchesSearch && matchesDifficulty && matchesTopic && matchesCompany;
+    });
+
+    const result = filtered.map(prob => {
       // Filter out company tags that don't match the timeframe filter
       if (timeframeFilter !== 'All Time') {
         const ranks: Record<string, number> = { '30 days': 1, '3 months': 2, '6 months': 3, 'Older': 4, 'All': 5 };
@@ -130,7 +147,21 @@ function App() {
       }
       return prob;
     });
-  }, [searchTerm, difficultyFilter, companyFilter, timeframeFilter, problems]);
+
+    // If a specific company is selected, sort the problems by that company's frequency
+    if (companyFilter !== 'All') {
+      result.sort((a, b) => {
+        const aComp = a.companies.find(c => c.name === companyFilter);
+        const bComp = b.companies.find(c => c.name === companyFilter);
+        const aFreq = aComp ? aComp.frequency : 0;
+        const bFreq = bComp ? bComp.frequency : 0;
+        // Sort descending
+        return bFreq - aFreq;
+      });
+    }
+
+    return result;
+  }, [searchTerm, difficultyFilter, companyFilter, topicFilter, timeframeFilter, problems]);
 
   const totalPages = Math.ceil(filteredProblems.length / PAGE_SIZE) || 1;
   
@@ -155,6 +186,11 @@ function App() {
 
   const handleCompany = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setCompanyFilter(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleTopic = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setTopicFilter(e.target.value);
     setCurrentPage(1);
   };
 
@@ -191,6 +227,12 @@ function App() {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+          <select className="filter-select" value={topicFilter} onChange={handleTopic}>
+            <option value="All">All Topics</option>
+            {allTopics.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
           <select className="filter-select" value={timeframeFilter} onChange={handleTimeframe}>
             <option value="All Time">All Time</option>
             <option value="30 days">Last 30 Days</option>
@@ -208,6 +250,7 @@ function App() {
                 <th>Title</th>
                 <th>Difficulty</th>
                 <th>Acceptance</th>
+                <th>Topics</th>
                 <th>Top Companies</th>
               </tr>
             </thead>
@@ -244,6 +287,20 @@ function App() {
                         </span>
                       </td>
                       <td>{prob.acceptance}</td>
+                      <td>
+                        <div className="topics-list" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxWidth: '200px' }}>
+                          {(prob.topics || []).slice(0, 2).map(t => (
+                            <span key={t} className="company-tag" style={{ background: 'rgba(255,255,255,0.1)', color: '#a0aec0' }}>
+                              {t}
+                            </span>
+                          ))}
+                          {(prob.topics || []).length > 2 && (
+                            <span className="company-tag" style={{ background: 'rgba(255,255,255,0.05)', color: '#718096' }} title={(prob.topics || []).slice(2).join(', ')}>
+                              +{(prob.topics || []).length - 2}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td>
                         <div className="companies-list">
                           {prob.companies.slice(0, 3).map(c => (

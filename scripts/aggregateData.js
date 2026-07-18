@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 const repoUrl = 'https://github.com/snehasishroy/leetcode-companywise-interview-questions.git';
 const tempDir = path.join(__dirname, '..', '.temp_data');
 const outPath = path.join(__dirname, '..', 'src', 'data', 'problems.json');
+const topicsPath = path.join(__dirname, '..', 'src', 'data', 'topics.json');
 
 // Ensure data directory exists
 const dataDir = path.dirname(outPath);
@@ -79,6 +80,7 @@ try {
                   title,
                   difficulty,
                   acceptance,
+                  topics: [], // To be populated later
                   companies: []
                 });
               }
@@ -102,15 +104,28 @@ try {
     }
   }
 
-  const finalProblems = Array.from(problemsMap.values());
-  finalProblems.sort((a, b) => a.id - b.id);
-  
-  finalProblems.forEach(p => {
-    p.companies.sort((a, b) => b.frequency - a.frequency);
-  });
+  const problemsArray = Array.from(problemsMap.values());
+  problemsArray.sort((a, b) => a.id - b.id);
 
-  fs.writeFileSync(outPath, JSON.stringify(finalProblems, null, 2));
-  console.log(`Successfully aggregated ${finalProblems.length} problems to ${outPath}`);
+  // Load topics if available
+  let topicsMap = {};
+  if (fs.existsSync(topicsPath)) {
+    try {
+      topicsMap = JSON.parse(fs.readFileSync(topicsPath, 'utf8'));
+    } catch (e) {
+      console.warn("Could not read topics.json, topics will be empty.");
+    }
+  }
+
+  // Sort companies for each problem by frequency descending, and attach topics
+  for (const prob of problemsArray) {
+    prob.companies.sort((a, b) => b.frequency - a.frequency);
+    prob.topics = topicsMap[prob.id.toString()] || [];
+  }
+
+  // Write to output file
+  fs.writeFileSync(outPath, JSON.stringify(problemsArray, null, 2));
+  console.log(`Successfully aggregated ${problemsArray.length} problems to ${outPath}`);
 
 } catch (error) {
   console.error("Error processing dataset:", error);
