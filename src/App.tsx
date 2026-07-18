@@ -109,7 +109,7 @@ function App() {
   };
 
   const filteredProblems = useMemo(() => {
-    return problems.filter((prob) => {
+    const filteredProblemsList = problems.filter((prob) => {
       const matchesSearch = prob.title.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesDifficulty = difficultyFilter === 'All' || prob.difficulty === difficultyFilter;
       const matchesTopic = topicFilter === 'All' || (prob.topics || []).includes(topicFilter);
@@ -135,7 +135,7 @@ function App() {
       return matchesSearch && matchesDifficulty && matchesTopic && matchesCompany;
     });
 
-    const result = filtered.map(prob => {
+    const result = filteredProblemsList.map(prob => {
       // Filter out company tags that don't match the timeframe filter
       if (timeframeFilter !== 'All Time') {
         const ranks: Record<string, number> = { '30 days': 1, '3 months': 2, '6 months': 3, 'Older': 4, 'All': 5 };
@@ -150,9 +150,9 @@ function App() {
 
     // If a specific company is selected, sort the problems by that company's frequency
     if (companyFilter !== 'All') {
-      result.sort((a, b) => {
-        const aComp = a.companies.find(c => c.name === companyFilter);
-        const bComp = b.companies.find(c => c.name === companyFilter);
+      result.sort((a: Problem, b: Problem) => {
+        const aComp = a.companies.find((c: Company) => c.name === companyFilter);
+        const bComp = b.companies.find((c: Company) => c.name === companyFilter);
         const aFreq = aComp ? aComp.frequency : 0;
         const bFreq = bComp ? bComp.frequency : 0;
         // Sort descending
